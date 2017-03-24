@@ -11,21 +11,21 @@
 %
 % Usage: ret = field_nonexistent_or_empty(field_string)
 %
-% Regarde si un certain champ d'une struct existe (récursivement) et s'il est vide.
+% Regarde si un certain champ d'une struct existe (rÃ©cursivement) et s'il est vide.
 % Passer dans 'field_string' le "chemin du champ", par exemple 'options.spectro.colormap'
 %
 % Retourne:
 %   0 si ce champ existe et est non-vide
 %   1 si ce champ existe mais est vide
-%   2 si ce champ (ou un des sous-champs intermédiaires) n'existe pas dans cette variable
-%   3 si la variable n'existe même pas.
+%   2 si ce champ (ou un des sous-champs intermÃ©diaires) n'existe pas dans cette variable
+%   3 si la variable n'existe mÃªme pas.
 %
 % Exemple:   ret = field_nonexistent_or_empty('aseega_analysis.info.recording')
 %
 % Physip, Paris France
 % 2002-2017
 
-% 16.09.13  v1.0  création
+% 16.09.13  v1.0  crÃ©ation
 
 function [ret] = field_nonexistent_or_empty(field_string)
 	fname = mfilename;
@@ -33,7 +33,7 @@ function [ret] = field_nonexistent_or_empty(field_string)
 	ret = 0;
 
 	try
-		value = evalin('caller', field_string);			% essaie d'accéder au champ
+		value = evalin('caller', field_string);			% essaie d'accÃ©der au champ
 
 	catch								% err1) champ inexistant
 
@@ -48,7 +48,7 @@ function [ret] = field_nonexistent_or_empty(field_string)
 		end
 
 	end
-					% si j'ai pu évaluer field_string
+					% si j'ai pu Ã©valuer field_string
 	if (ret == 0)			% <=> si ce champ existe :
 		if (isempty(value))	% regarde maintenant s'il est vide,
 			ret = 1;	% si oui retourne 1
