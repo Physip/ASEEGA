@@ -11,7 +11,8 @@
 %
 %        In:	aseega_analysis, structure array provided by Aseega EEG Analysis
 %		flag_plot_fig,  1 = plot figures, 0 = no figure
-%		flag_Excel_ouput, 1 = results in Excel file,  = no output file
+%		flag_Excel_ouput, 1 = results in Excel file,  0 = no output file
+%		flag_visual_scoring, 1 = use visual scoring, 0 = use Aseega scoring
 %
 %       Out:	Nb_events_per_epok, number of events detected, for each 30s-epoch
 %
@@ -20,7 +21,7 @@
 %
 %   Example:	load('GUEA-C4O2.AseegaAnalysis.A4R.mat')	% loads the Aseega structure result of the recording GUEA-C4O2.edf,
 %								% this can also be achieved by a drag and drop of the matfile in the command tool
-%		AseegaStat_MicroStruct(aseega_analysis,1,0);	% grab the results of interest, according to the Parameters section, and plot the results
+%		AseegaStat_MicroStruct(aseega_analysis,1,0,0);	% grab the results of interest, according to the Parameters section, and plot the results
 %
 %
 %   History:	v1.0   24-02-2014 Creation
@@ -28,17 +29,18 @@
 %		v2.1   13-09-2016 CommandTool print debug    
 %		v2.2   05-10-2016 User friendly syntax
 %		v2.3   27-02-2017 Add Excel ouput file
+%		v2.4   22-12-2017 can use visual scoring, if provided
 %
 %  Physip, Paris France
-%  2002-2017
+%  2002-2018
 
 
 
 
 function [Nb_events_per_epok] = AseegaStat_MicroStruct(varargin)
 
-me.version = '2.3';
-me.date    = 'Physip, Feb 27th, 2017';
+me.version = '2.4';
+me.date    = 'Physip, Dec 22nd, 2017';
 fname = 'AseegaStat_MicroStruct';
 
 
@@ -78,17 +80,18 @@ flag_SOI_restricted = 0;		% Plot for the whole revording
 % - - - - - - - - FOR EXPERIMENTED MATLAB USERS ONLY - - - - - - - - - - - -
 
 
-if nargin < 3 || nargin > 3
+if nargin < 4 || nargin > 4
 	disp(['   Error using ',fname,'.m, incorrect number of input arguments.'])
 	disp('   The correct syntax is:')
-	disp('   >> AseegaStat_MicroStruct(aseega_analysis,flag_plot_fig,flag_Excel_ouput)')
+	disp('   >> AseegaStat_MicroStruct(aseega_analysis,flag_plot_fig,flag_Excel_ouput,flag_visual_scoring)')
 	disp('   Thanks')
 	disp(' ')
 	return
 else
-	aseega_analysis = varargin{1};
-	flag_plot_fig	= varargin{2};
-	flag_Excel_ouput= varargin{3};
+	aseega_analysis		= varargin{1};
+	flag_plot_fig		= varargin{2};
+	flag_Excel_ouput	= varargin{3};
+	flag_visual_scoring	= varargin{4};
 end
 
 
@@ -108,7 +111,20 @@ FOI = event_results.adapted_frequency_band;			% frequency band in which the even
 
 % Index of epochs for which the subject is in the sleep stage of interest (SOI)
 % =============================================================================
-hypno_5stages = aseega_analysis.scoring.hypno5;		% Current five-state hypnogram: W,R,N1,N2,N3
+if flag_visual_scoring
+	hypno_5stages = aseega_analysis.scoring.hypno_visual_1;	% Current five-state VISUAL hypnogram: W,R,N1,N2,N3
+else
+	hypno_5stages = aseega_analysis.scoring.hypno5;		% Current five-state ASEEGA hypnogram: W,R,N1,N2,N3
+end
+if isempty(hypno_5stages)
+	if flag_visual_scoring
+		disp('Sorry, visual scoring not found')
+	else
+		disp('Sorry, Aseega scoring not found')
+	end
+	return
+end
+
 [Nb_SOI, ~] = size(sleep_stages);			% Number of stages of interest
 
 ptr_W = [];ptr_R = [];ptr_N1 = [];ptr_N2 = [];ptr_N3 = [];% Initialization
@@ -263,7 +279,11 @@ if flag_Excel_ouput
 	xlswrite(xls_outpufile, {sprintf('%s: version %s (%s)',fname,me.version,me.date)}, 1, 'B1')
 
 	% Sheet title
-	sheet_title = {sprintf('%s -  Sleep microstructure  - %s (%0.5g-%0.5gHz) detected in stages%s',name_subject,type_microstructure,FOI(1),FOI(2),legend_SOI)};
+	if flag_visual_scoring
+		sheet_title = {sprintf('%s -  Sleep microstructure  - %s (%0.5g-%0.5gHz) detected in stages%s (visual scoring)',name_subject,type_microstructure,FOI(1),FOI(2),legend_SOI)};
+	else
+		sheet_title = {sprintf('%s -  Sleep microstructure  - %s (%0.5g-%0.5gHz) detected in stages%s (Aseega scoring)',name_subject,type_microstructure,FOI(1),FOI(2),legend_SOI)};
+	end
 	xlswrite(xls_outpufile, sheet_title, 1, 'B4')
 
 	cur_line = 6;
@@ -473,13 +493,21 @@ if flag_plot_fig
 	subplot(211)
 		plot(Nb_events_per_epok);
 		set(gca, 'xlim',[1 Nb_epk]);grid; ylabel('Nb / epoch')
-		title(sprintf('%s -  Detection of sleep %s (N = %0.5g) the whole recording',name_subject_fig,event_name,Nb_events),'fontweight','bold')
+		if flag_visual_scoring
+			title(sprintf('%s -  Detection of sleep %s (N = %0.5g) the whole recording (visual stage scoring)',name_subject_fig,event_name,Nb_events),'fontweight','bold')
+		else
+			title(sprintf('%s -  Detection of sleep %s (N = %0.5g) the whole recording (Aseega stage scoring)',name_subject_fig,event_name,Nb_events),'fontweight','bold')
+		end
 		plot_scale = axis;
 	subplot(212)
 		Plot_Nb_events_per_epok_SOI = zeros(size(Nb_events_per_epok));
 		Plot_Nb_events_per_epok_SOI(ptr_SOI_epk) = Nb_events_per_epok(ptr_SOI_epk);
 		plot(Plot_Nb_events_per_epok_SOI)
-		set(gca, 'xlim',[1 Nb_epk],'ylim',[0 plot_scale(4)]);grid; ylabel(sprintf('Nb / epoch of stage %s',legend_SOI))
+		if flag_visual_scoring
+			set(gca, 'xlim',[1 Nb_epk],'ylim',[0 plot_scale(4)]);grid; ylabel(sprintf('Nb / epoch of visual stage %s',legend_SOI))
+		else
+			set(gca, 'xlim',[1 Nb_epk],'ylim',[0 plot_scale(4)]);grid; ylabel(sprintf('Nb / epoch of stage %s',legend_SOI))
+		end
 		xlabel('Time (30s-epochs)')
 
 

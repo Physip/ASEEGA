@@ -15,6 +15,8 @@
 %		flag_cycleanalysis,  1 = per-cycle analysis, 0 = all-night analysis 
 %		flag_plot_fig,  1 = plot figures, 0 = no figure
 %		flag_Excel_ouput, 1 = results in Excel file,  = no output file
+%		flag_visual_scoring, 1 = use visual scoring, 0 = use Aseega scoring
+%
 %       Out:	Pwr_FOI_SOI, Spectral power in frequency band of interest (FOI) for sleep stages of interest (SOI)
 % Called by: 
 %     Calls:	AseegaPlot_Hypno.m
@@ -23,22 +25,23 @@
 %		v2.0   25-04-2016 Add Excel ouput file, per-cycle analysis and EEGWatch plot
 %		v2.1   05-10-2016 User friendly syntax
 %		v2.2   01-03-2017 Excel Layout
+%		v2.3   22-12-2017 can use visual scoring, if provided
 %
 %   Example:	load('GUEA-C4O2.AseegaAnalysis.A4R.mat')	% loads the Aseega structure result of the recording GUEA-C4O2.edf
-%		AseegaStat_PwrPerStage(aseega_analysis,1,1,1);	% grab the results of interest according to the Parameters section,...
+%		AseegaStat_PwrPerStage(aseega_analysis,1,1,1,0);% grab the results of interest according to the Parameters section,...
 %								% ... perform per-cycle analysis, plot the results and write an Excel ouput file
 %            
 %
 %  Physip, Paris France
-%  2002-2017
+%  2002-2018
 
 
 
 
 function [Pwr_FOI] = AseegaStat_PwrPerStage(varargin)
 
-me.version = '2.2';
-me.date    = 'Physip, March 1st, 2017';
+me.version = '2.3';
+me.date    = 'Physip, Dec 22nd, 2017';
 fname = 'AseegaStat_PwrPerStage';
 
 
@@ -93,10 +96,10 @@ SOL_def = 'sleep_onset_3S';			% R&K definition: the first 3 epochs of stage S1 o
 
 
 
-if nargin < 4 || nargin > 4
+if nargin < 5 || nargin > 5
 	disp(['   Error using ',fname,'.m, incorrect number of input arguments.'])
 	disp('   The correct syntax is:')
-	disp('   >> AseegaStat_PwrPerStage(aseega_analysis,flag_cycleanalysis,flag_plot_fig,flag_Excel_ouput)')
+	disp('   >> AseegaStat_PwrPerStage(aseega_analysis,flag_cycleanalysis,flag_plot_fig,flag_Excel_ouput,flag_visual_scoring)')
 	disp('   Thanks')
 	disp(' ')
 	return
@@ -105,6 +108,7 @@ else
 	flag_cycleanalysis	= varargin{2};
 	flag_plot_fig		= varargin{3};
 	flag_Excel_ouput	= varargin{4};
+	flag_visual_scoring	= varargin{5};
 end
 
 
@@ -139,7 +143,19 @@ end
 
 % Index of epochs for which the subject is in the sleep stage of interest (SOI)
 % =============================================================================
-hypno_5stages = aseega_analysis.scoring.hypno5;		% Current five-state hypnogram: W,R,N1,N2,N3
+if flag_visual_scoring
+	hypno_5stages = aseega_analysis.scoring.hypno_visual_1;	% Current five-state VISUAL hypnogram: W,R,N1,N2,N3
+else
+	hypno_5stages = aseega_analysis.scoring.hypno5;		% Current five-state ASEEGA hypnogram: W,R,N1,N2,N3
+end
+if isempty(hypno_5stages)
+	if flag_visual_scoring
+		disp('Sorry, visual scoring not found')
+	else
+		disp('Sorry, Aseega scoring not found')
+	end
+	return
+end
 
 ptr_W = [];ptr_R = [];ptr_N1 = [];ptr_N2 = [];ptr_N3 = [];% Initialization
 for st = 1: Nb_SOI
@@ -250,7 +266,11 @@ for icycle = 1 : cycles_Nb
 		xlswrite(xls_outpufile, {sprintf('%s: version %s (%s)',fname,me.version,me.date)}, 1, 'B1')
 
 		% Sheet title
-		sheet_title = {sprintf('%s -  Spectral Power in %s band [%0.5g - %0.5g] Hz for epochs in stages%s (%s data, %s units)',name_subject,freq_band,bd_Hz(band),bd_Hz(band+1),legend_SOI,type_EEG_data,type_unit)};
+		if flag_visual_scoring
+			sheet_title = {sprintf('%s -  Spectral Power in %s band [%0.5g - %0.5g] Hz for epochs in stages%s (visual scoring, %s data, %s units)',name_subject,freq_band,bd_Hz(band),bd_Hz(band+1),legend_SOI,type_EEG_data,type_unit)};
+		else
+			sheet_title = {sprintf('%s -  Spectral Power in %s band [%0.5g - %0.5g] Hz for epochs in stages%s (Aseega scoring, %s data, %s units)',name_subject,freq_band,bd_Hz(band),bd_Hz(band+1),legend_SOI,type_EEG_data,type_unit)};
+		end
 		xlswrite(xls_outpufile, sheet_title, 1, 'B3')
 
 		% Cycle result column
@@ -326,7 +346,11 @@ if flag_plot_fig
 	
 	subplot(211)
 		hist(allnight_Pwr_FOI_SOI,100)
-		title(sprintf('%s -  Spectral Power in %s band [%0.5g - %0.5g] Hz for epochs in stages%s (%s data, %s units)',name_subject_fig,freq_band,bd_Hz(band),bd_Hz(band+1),legend_SOI,type_EEG_data,type_unit),'fontweight','bold')
+		if flag_visual_scoring
+			title(sprintf('%s -  Spectral Power in %s band [%0.5g - %0.5g] Hz for epochs in stages%s (visual scoring, %s data, %s units)',name_subject_fig,freq_band,bd_Hz(band),bd_Hz(band+1),legend_SOI,type_EEG_data,type_unit),'fontweight','bold')
+		else
+			title(sprintf('%s -  Spectral Power in %s band [%0.5g - %0.5g] Hz for epochs in stages%s (Aseega scoring, %s data, %s units)',name_subject_fig,freq_band,bd_Hz(band),bd_Hz(band+1),legend_SOI,type_EEG_data,type_unit),'fontweight','bold')
+		end
 		ylabel('Pwr histogram')
 		xlabel(sprintf('Mean power = %0.5g  - Std = %0.5g  -  Median = %0.5g',mean(allnight_Pwr_FOI_SOI),std(allnight_Pwr_FOI_SOI),median(allnight_Pwr_FOI_SOI)),'color','r')
 	subplot(212)
